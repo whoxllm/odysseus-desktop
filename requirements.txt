@@ -48,3 +48,10 @@ pytest-asyncio
 # TestClient import when only classic httpx is present. Runtime code keeps
 # using `httpx` above; this is test-client only.
 httpx2
+
+# Native Windows desktop harness (odysseus-desktop.py): required to launch the
+# desktop app. pywebview embeds the web UI in a native window, pystray provides
+# the system-tray icon, and Pillow renders the tray/window icon.
+pywebview
+pystray
+pillow
