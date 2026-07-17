@@ -32,11 +32,10 @@ git clone https://github.com/whoxllm/odysseus-desktop.git
 cd odysseus-desktop
 python -m venv venv
 venv\Scripts\python.exe -m pip install -r requirements.txt
-venv\Scripts\python.exe setup.py install
 venv\Scripts\python.exe odysseus-desktop.py
 ```
 
-That last command starts everything and opens the app in its own window. From then on, launch it any time from the **Start Menu** — just type "Odysseus."
+That last command is all you need — the harness creates its data directory and database on first run, starts the backend, and opens the app in its own window. There's **no separate setup step**: the app's own "Create Admin Account" screen sets up your admin login in the window (see below). From then on, launch it any time from the **Start Menu** — just type "Odysseus."
 
 > **Always call `venv\Scripts\python.exe` directly** instead of running `venv\Scripts\activate` and then bare `python`/`pip`. On machines with more than one Python (Windows Store stubs, other venvs on PATH), `activate` doesn't reliably win the PATH race, so bare `python` can install against one interpreter and launch against another — the install "succeeds" and then the app fails to import. Calling the venv's `python.exe` explicitly for every step sidesteps it.
 >
