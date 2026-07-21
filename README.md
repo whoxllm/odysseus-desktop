@@ -20,7 +20,7 @@
 
 
 
-> Ease of use install for [Odysseus](https://github.com/pewdiepie-archdaemon/odysseus), **#FirstWorldProblems** Edition. On top of the upstream web app it adds `odysseus-desk[...]
+> Ease of use install for [Odysseus](https://github.com/pewdiepie-archdaemon/odysseus), **#FirstWorldProblems** Edition.
 
 ## Quick Start (Windows Desktop)
 
