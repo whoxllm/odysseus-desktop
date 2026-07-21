@@ -17,9 +17,13 @@
   <img src="docs/odysseus-windows.png" alt="Odysseus running as a native Windows desktop app, found in the Start Menu">
 </p>
 
+<p align="center">
+  <img src="docs/odysseus-browser.jpg" alt="Odysseus browser UI showing the chat interface and workspace">
+</p>
+
 ---
 
-> **About this build:** Ease of use install for [Odysseus](https://github.com/pewdiepie-archdaemon/odysseus), **#FirstWorldProblems** Edition. On top of the upstream web app it adds `odysseus-desktop.py` — a harness that runs the backend for you, embeds the UI in a real window, lives in the system tray, and registers itself in the Start Menu like an installed app. No Docker, no browser tab, no manual `uvicorn`. If you want the plain server/Docker deployment instead, see [Other ways to run it](#other-ways-to-run-it).
+> **About this build:** Ease of use install for [Odysseus](https://github.com/pewdiepie-archdaemon/odysseus), **#FirstWorldProblems** Edition. On top of the upstream web app it adds `odysseus-desk[...]
 
 ## Quick Start (Windows Desktop)
 
@@ -35,11 +39,11 @@ venv\Scripts\python.exe -m pip install -r requirements.txt
 venv\Scripts\python.exe odysseus-desktop.py
 ```
 
-The harness creates its data directory and database on first run, starts the backend, and opens the app in its own window. There's **no separate setup step**: the app's own "Create Admin Account" screen sets up your admin login in the window (see below). From then on, launch it any time from the **Start Menu** — just type "Odysseus."
+The harness creates its data directory and database on first run, starts the backend, and opens the app in its own window. There's **no separate setup step**: the app's own "Create Admin Account" [...]
 
-> **Always call `venv\Scripts\python.exe` directly** instead of running `venv\Scripts\activate` and then bare `python`/`pip`. On machines with more than one Python (Windows Store stubs, other venvs on PATH), `activate` doesn't reliably win the PATH race, so bare `python` can install against one interpreter and launch against another — the install "succeeds" and then the app fails to import. Calling the venv's `python.exe` explicitly for every step sidesteps it.
+> **Always call `venv\Scripts\python.exe` directly** instead of running `venv\Scripts\activate` and then bare `python`/`pip`. On machines with more than one Python (Windows Store stubs, other venv[...]
 >
-> To verify you're on the right interpreter: `venv\Scripts\python.exe -c "import sys; print(sys.executable)"` should print a path inside your `odysseus-desktop\venv\` folder. If it doesn't, delete `venv\` and recreate it.
+> To verify you're on the right interpreter: `venv\Scripts\python.exe -c "import sys; print(sys.executable)"` should print a path inside your `odysseus-desktop\venv\` folder. If it doesn't, delete[...]
 
 `requirements.txt` pulls the harness's own dependencies — `pywebview`, `pystray`, and `pillow` — automatically. All three are required; without them the app crashes on import.
 
@@ -51,18 +55,18 @@ The harness creates its data directory and database on first run, starts the bac
 - **Native window.** Embeds the web UI in a real [pywebview](https://pywebview.flowrl.com/) window — no browser, no tab.
 - **System tray** (boat icon) with **Open Odysseus**, **Start/Stop Backend**, **Reset Account (First-Run Setup)**, **Add to Start Menu**, and **Quit**.
 - **Close-to-tray.** The window's close button hides to the tray instead of quitting; use tray → **Quit** to fully exit.
-- **Start Menu shortcut.** On first launch it writes a per-user shortcut (`…\Start Menu\Programs\Odysseus.lnk`) pointing a windowless Python at the harness, so Odysseus is searchable/launchable like any installed app. If you move the repo, use tray → **Add to Start Menu** to recreate it.
+- **Start Menu shortcut.** On first launch it writes a per-user shortcut (`…\Start Menu\Programs\Odysseus.lnk`) pointing a windowless Python at the harness, so Odysseus is searchable/launchable [...]
 - **Correct taskbar icon.** Sets an explicit AppUserModelID so Windows shows the Odysseus boat icon in the taskbar instead of the generic Python host icon.
 
 ### First launch & admin account
 
-On first run the web UI detects there's no admin account and shows a **Create Admin Account** screen (username + password) instead of a login form — fill it in and you're logged in as admin. No separate signup step.
+On first run the web UI detects there's no admin account and shows a **Create Admin Account** screen (username + password) instead of a login form — fill it in and you're logged in as admin. No [...]
 
-**Resetting the account:** to redo setup (testing, handing the app to someone else, forgotten password), use the tray's **Reset Account (First-Run Setup)**. It clears the stored admin credentials, restarts the backend, and reloads straight to the Create-Admin screen. Sessions, chats, and other data are left untouched.
+**Resetting the account:** to redo setup (testing, handing the app to someone else, forgotten password), use the tray's **Reset Account (First-Run Setup)**. It clears the stored admin credentials,[...]
 
 ### Local models
 
-For local inference, point Odysseus at your endpoint in **Settings** after launch — e.g. `http://localhost:11434/v1` for [Ollama](https://ollama.com/), or any OpenAI-compatible server (`llama.cpp`, vLLM, etc.).
+For local inference, point Odysseus at your endpoint in **Settings** after launch — e.g. `http://localhost:11434/v1` for [Ollama](https://ollama.com/), or any OpenAI-compatible server (`llama.cp[...]
 
 ### Packaging a standalone `.exe` (optional)
 
@@ -91,11 +95,11 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Open `http://localhost:7000` when the containers are healthy; the first admin password is printed in `docker compose logs odysseus`. Native Linux/macOS installs, GPU notes, HTTPS, and configuration live in the [setup guide](docs/setup.md).
+Open `http://localhost:7000` when the containers are healthy; the first admin password is printed in `docker compose logs odysseus`. Native Linux/macOS installs, GPU notes, HTTPS, and configuratio[...]
 
 ## Security
 
-Odysseus is a self-hosted workspace with powerful local tools. Keep auth enabled, keep private data out of Git, and do not expose raw model/service ports publicly. Deployment details are in the [setup guide](docs/setup.md#security-notes).
+Odysseus is a self-hosted workspace with powerful local tools. Keep auth enabled, keep private data out of Git, and do not expose raw model/service ports publicly. Deployment details are in the [s[...]
 
 ## License
 
