@@ -19,6 +19,12 @@ IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 TEXT_EXTS = {".md", ".html", ".htm", ".js", ".ts", ".css", ".py", ".sh",
              ".json", ".yml", ".yaml", ".txt"}
 
+# Files or path prefixes to allow even if they are not referenced in tracked
+# text files. Use this to permit intentional screenshots, gallery assets, or
+# a11y images that are stored for reference but not linked from docs pages.
+ALLOWED_ORPHAN_IMAGES = {"docs/odysseus-browser.jpg"}
+ALLOWED_ORPHAN_PREFIXES = {"docs/a11y/", "docs/gallery-"}
+
 
 def _tracked(paths_under):
     """Git-tracked files under a path, or None if git isn't available."""
@@ -57,6 +63,8 @@ def test_no_orphan_images_in_docs():
         str(img.relative_to(REPO))
         for img in docs_images
         if img.name not in blob
+        and str(img.relative_to(REPO)) not in ALLOWED_ORPHAN_IMAGES
+        and not any(str(img.relative_to(REPO)).startswith(p) for p in ALLOWED_ORPHAN_PREFIXES)
     ]
     assert not orphans, (
         "unreferenced image(s) committed under docs/ — likely PR screenshots "
