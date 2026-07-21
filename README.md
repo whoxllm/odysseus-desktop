@@ -17,9 +17,7 @@
   <img src="docs/odysseus-windows.png" alt="Odysseus running as a native Windows desktop app, found in the Start Menu">
 </p>
 
-<p align="center">
-  <img src="docs/odysseus-browser.jpg" alt="Odysseus browser UI showing the chat interface and workspace">
-</p>
+
 
 ---
 
