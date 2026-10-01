@@ -56,3 +56,10 @@ httpx2
 # create_engine() and raises ModuleNotFoundError if missing. -binary avoids
 # needing libpq-dev/pg_config on the host/image to compile it.
 psycopg2-binary
+
+# Native Windows desktop harness (odysseus-desktop.py): required to launch the
+# desktop app. pywebview embeds the web UI in a native window, pystray provides
+# the system-tray icon, and Pillow renders the tray/window icon.
+pywebview
+pystray
+pillow
