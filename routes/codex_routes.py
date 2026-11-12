@@ -57,6 +57,17 @@ def _ssh_prefix_for_task(task: dict) -> tuple[str, str]:
     return host, port_flag
 
 
+def _ssh_argv(host: str, port_flag: str, remote_cmd: str) -> list[str]:
+    """Build an ``ssh`` argv from a validated host and a ``_ssh_prefix_for_task`` port flag.
+
+    ``remote_cmd`` is run by the remote login shell, so callers must only put
+    validated tokens in it (session ids matching ``[a-zA-Z0-9_-]+``, ints).
+    """
+    if not host or host.startswith("-"):
+        raise HTTPException(400, "Invalid remote host")
+    return ["ssh", *port_flag.split(), host, remote_cmd]
+
+
 async def _as_owner(request: Request, owner: str, fn, *args, **kwargs):
     """Run an existing route handler with request.state.current_user temporarily
     set to ``owner`` so its internal get_current_user/require_user calls see
@@ -523,12 +534,17 @@ def setup_codex_routes(
     # allowlist (vllm/python3/sglang/llama-server/etc., no shell metachars)
     # keeps the agent inside the same sandbox the UI uses.
 
-    async def _run_shell(cmd: str, timeout: float = 15.0) -> dict:
-        """Run a shell command, return {exit_code, stdout, stderr}."""
+    async def _run_argv(argv: list[str], timeout: float = 15.0) -> dict:
+        """Run a command as an argv list (no local shell), return {exit_code, stdout, stderr}.
+
+        Every value that reaches here (session ids, hosts, ports) is validated
+        by the route, but running without a local shell means a value that
+        slips past validation still can't be parsed as shell syntax here.
+        """
         import asyncio as _asyncio
         try:
-            proc = await _asyncio.create_subprocess_shell(
-                cmd,
+            proc = await _asyncio.create_subprocess_exec(
+                *argv,
                 stdout=_asyncio.subprocess.PIPE,
                 stderr=_asyncio.subprocess.PIPE,
             )
@@ -615,16 +631,24 @@ def setup_codex_routes(
         # survives unchanged. Falls back to pane for older tasks predating
         # the tee-to-log runner change.
         log_path = f"/tmp/odysseus-tmux/{session_id}.log"
-        inner = (
-            f"if [ -s {log_path} ]; then tail -n {tail} {log_path}; "
-            f"else tmux capture-pane -t {session_id} -p -S -{tail}; fi"
-        )
         if host:
-            import shlex
-            cmd = f"ssh {port_flag}{host} {shlex.quote(inner)}"
+            # Remote: the remote login shell runs this; session_id matched
+            # [a-zA-Z0-9_-]+ and tail is an int, so nothing here needs quoting.
+            inner = (
+                f"if [ -s {log_path} ]; then tail -n {tail} {log_path}; "
+                f"else tmux capture-pane -t {session_id} -p -S -{tail}; fi"
+            )
+            result = await _run_argv(_ssh_argv(host, port_flag, inner), timeout=15)
         else:
-            cmd = inner
-        result = await _run_shell(cmd, timeout=15)
+            local_log = Path(log_path)
+            if local_log.is_file() and local_log.stat().st_size > 0:
+                lines = local_log.read_text(encoding="utf-8", errors="replace").splitlines()
+                result = {"exit_code": 0, "stdout": "\n".join(lines[-tail:]) + "\n", "stderr": ""}
+            else:
+                result = await _run_argv(
+                    ["tmux", "capture-pane", "-t", session_id, "-p", "-S", f"-{tail}"],
+                    timeout=15,
+                )
         return {
             "session_id": session_id,
             "host": host or "local",
@@ -683,10 +707,10 @@ def setup_codex_routes(
         task = next((t for t in tasks if t.get("sessionId") == session_id), None)
         host, port_flag = _ssh_prefix_for_task(task or {})
         if host:
-            cmd = f"ssh {port_flag}{host} \"tmux kill-session -t {session_id}\""
+            argv = _ssh_argv(host, port_flag, f"tmux kill-session -t {session_id}")
         else:
-            cmd = f"tmux kill-session -t {session_id}"
-        result = await _run_shell(cmd, timeout=10)
+            argv = ["tmux", "kill-session", "-t", session_id]
+        result = await _run_argv(argv, timeout=10)
         return {"session_id": session_id, "exit_code": result.get("exit_code"), "host": host or "local"}
 
     @router.get("/cookbook/cached")
@@ -840,12 +864,11 @@ def setup_codex_routes(
         if not model:
             raise HTTPException(400, "model required")
         # Verify the tmux session exists on the target host before adopting.
-        import shlex
         if host:
-            check = f"ssh {shlex.quote(host)} 'tmux has-session -t {shlex.quote(sess)}'"
+            check = _ssh_argv(host, "", f"tmux has-session -t {sess}")
         else:
-            check = f"tmux has-session -t {shlex.quote(sess)}"
-        chk = await _run_shell(check, timeout=8)
+            check = ["tmux", "has-session", "-t", sess]
+        chk = await _run_argv(check, timeout=8)
         if chk.get("exit_code") not in (0, None):
             raise HTTPException(404, f"tmux session {sess!r} not found on {host or 'local'}")
         # Write into cookbook_state.json.
