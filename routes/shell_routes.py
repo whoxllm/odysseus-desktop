@@ -552,6 +552,12 @@ def _normalize_legacy_remote_tmux_exec(command: str) -> str:
 async def _create_shell(command: str, **kwargs):
     """Spawn a shell subprocess for `command`.
 
+    Security note (CodeQL py/command-line-injection): running the caller's
+    command through a shell is this module's purpose, the built-in terminal.
+    Every route that reaches here (/api/shell/exec, /api/shell/stream) calls
+    _require_admin first, so only admins (or the in-process tool loopback)
+    can run commands. Keep that gate on any new caller.
+
     POSIX: /bin/sh via create_subprocess_shell (unchanged behaviour).
     Windows: prefer a real bash (Git Bash/WSL) so bash-syntax commands behave
     the same as on Linux; fall back to cmd.exe when no bash is installed.

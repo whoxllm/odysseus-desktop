@@ -2931,6 +2931,12 @@ def setup_cookbook_routes() -> APIRouter:
 
     # ── GPU availability probe ──
 
+    # Security note (CodeQL py/command-line-injection): the cookbook runs
+    # commands on the user's own GPU hosts over ssh by design. The routes that
+    # build these command strings are admin-only, pass `host`/`ssh_port`
+    # through validate_remote_host/validate_ssh_port (no shell metacharacters,
+    # no leading "-"), generate session ids themselves, and check serve
+    # commands with _validate_serve_cmd. Keep those checks on any new caller.
     async def _run_nvidia_smi(query: str, host: str | None, ssh_port: str | None, timeout: int = 8):
         """Run nvidia-smi locally or over SSH. Returns (stdout, error_or_None)."""
         if host:
