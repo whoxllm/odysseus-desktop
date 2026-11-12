@@ -2016,7 +2016,7 @@ def _ody_qwen_terminal_tool_summary(tool_event: dict[str, Any]) -> str:
 
 
 _DESTRUCTIVE_REQUEST_RE = re.compile(
-    r"\b(delete|remove|archive|trash|send|reply|unsubscribe|mark\s+.*read)\b",
+    r"\b(delete|remove|archive|trash|send|reply|unsubscribe|mark\s+(?:\S.*)?read)\b",
     re.IGNORECASE,
 )
 

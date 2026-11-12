@@ -1785,7 +1785,13 @@ def setup_cookbook_routes() -> APIRouter:
         # existing systemd Ollama, the registered endpoint pointed at
         # the OLD port and showed as offline.
         port_match = re.search(r'--port\s+(\d+)', req.cmd)
-        ollama_host_match = re.search(r'OLLAMA_HOST=[^\s]*?:(\d+)', req.cmd)
+        # Take the OLLAMA_HOST value, then its first `:port`: same result as
+        # the old lazy `OLLAMA_HOST=[^\s]*?:(\d+)` without its O(n^2) rescan.
+        ollama_host_match = None
+        for _ollama_host_val in re.finditer(r'OLLAMA_HOST=(\S*)', req.cmd):
+            ollama_host_match = re.search(r':(\d+)', _ollama_host_val.group(1))
+            if ollama_host_match:
+                break
         if port_match:
             port = int(port_match.group(1))
         elif ollama_host_match:

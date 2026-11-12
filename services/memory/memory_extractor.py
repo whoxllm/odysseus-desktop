@@ -566,7 +566,8 @@ async def audit_memories(
         # markdown fences, leading prose, and trailing commas.
         import re as _re
         text = (raw or "").strip()
-        text = _re.sub(r'<think(?:ing)?>[\s\S]*?</think(?:ing)?>', '', text, flags=_re.I).strip()
+        from src.text_helpers import first_code_fence_body, strip_closed_think_blocks
+        text = strip_closed_think_blocks(text).strip()
 
         def _loads_list(s):
             if not s:
@@ -582,9 +583,9 @@ async def audit_memories(
 
         cleaned = _loads_list(text)
         if cleaned is None:
-            _m = _re.search(r'```(?:json)?\s*\n?([\s\S]*?)```', text)
-            if _m:
-                cleaned = _loads_list(_m.group(1).strip())
+            _fence = first_code_fence_body(text)
+            if _fence is not None:
+                cleaned = _loads_list(_fence.strip())
         if cleaned is None:
             _a, _b = text.find('['), text.rfind(']')
             if _a >= 0 and _b > _a:

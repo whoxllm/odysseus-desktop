@@ -186,7 +186,8 @@ async def _eval_skill_run(skill_md: str, task: str, transcript: str,
         # Strip closed think blocks. If a <think> was opened but never closed
         # (the model ran out of budget mid-reasoning), drop everything from it
         # onward so its stray braces don't poison JSON extraction.
-        text = _re.sub(r'<think(?:ing)?>[\s\S]*?</think(?:ing)?>', '', text, flags=_re.I)
+        from src.text_helpers import iter_brace_spans, strip_closed_think_blocks
+        text = strip_closed_think_blocks(text)
         text = _re.sub(r'<think(?:ing)?>[\s\S]*$', '', text, flags=_re.I).strip()
 
         def _coerce(d):
@@ -196,8 +197,7 @@ async def _eval_skill_run(skill_md: str, task: str, transcript: str,
         # Scan every balanced {...} candidate and keep the LAST one that parses
         # and carries a "verdict" — the transcript is full of JSON API bodies,
         # so a naive first-brace/last-brace span almost never parses.
-        for m in _re.finditer(r'\{[\s\S]*?\}', text):
-            frag = m.group(0)
+        for frag in iter_brace_spans(text):
             for cand in (frag, _re.sub(r',(\s*[}\]])', r'\1', frag)):
                 try:
                     d = _coerce(_json.loads(cand))

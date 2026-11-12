@@ -110,8 +110,37 @@ def extract_internal_upload_ids(value: Any) -> set[str]:
     return (
         set(INTERNAL_UPLOAD_URL_RE.findall(value))
         | set(PDF_SOURCE_UPLOAD_RE.findall(value))
-        | set(ATTACHMENT_REFERENCE_LINE_RE.findall(value))
+        | set(_attachment_reference_ids(value))
     )
+
+
+_ATTACHMENT_REFERENCE_OPEN_RE = re.compile(r"\[Attachment:", re.IGNORECASE)
+
+
+def _attachment_reference_ids(value: str) -> list[str]:
+    """``ATTACHMENT_REFERENCE_LINE_RE.findall(value)`` without the O(n^2) case.
+
+    A failed match at one ``[Attachment:`` means every later opener before the
+    same ``]``/newline also fails (its candidate ``| id=`` spots are a subset),
+    so skip straight past that boundary instead of retrying each opener. Plain
+    findall rescans the rest of the line from every opener of a flood.
+    """
+    ids: list[str] = []
+    pos = 0
+    n = len(value)
+    while True:
+        om = _ATTACHMENT_REFERENCE_OPEN_RE.search(value, pos)
+        if om is None:
+            return ids
+        m = ATTACHMENT_REFERENCE_LINE_RE.match(value, om.start())
+        if m:
+            ids.append(m.group(1))
+            pos = max(m.end(), om.start() + 1)
+            continue
+        end = om.end()
+        while end < n and value[end] not in "]\r\n":
+            end += 1
+        pos = max(end, om.end())
 
 
 def reserve_upload_references(

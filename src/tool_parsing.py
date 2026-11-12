@@ -167,10 +167,11 @@ _TOOL_CODE_OPEN_RE = re.compile(r"<tool_code>\s*\{", re.IGNORECASE)
 _TOOL_CODE_CLOSE_RE = re.compile(r"\}\s*</tool_code>", re.IGNORECASE)
 
 # Pattern 4b: Gemma-style <|tool_call|> call:tool_name{args} <tool_call|>
-_GEMMA_TOOL_CALL_RE = re.compile(
-    r"<\|?tool_call\|?>\s*call:([\w\d_-]+)\s*(\{[\s\S]*?\})\s*<\|?tool_call\|?>",
-    re.IGNORECASE,
-)
+# Matched as an opener/closer pair, scanned forward-only (see _iter_delimited):
+# a single lazy `\{[\s\S]*?\}` regex re-scans to end-of-string from every
+# unclosed opener, which is O(n^2) on untrusted model output.
+_GEMMA_TOOL_CALL_OPEN_RE = re.compile(r"<\|?tool_call\|?>\s*call:([\w\d_-]+)\s*\{", re.IGNORECASE)
+_GEMMA_TOOL_CALL_CLOSE_RE = re.compile(r"\}\s*<\|?tool_call\|?>", re.IGNORECASE)
 
 # Pattern 4c: Open-function wrapper emitted by some local MLX/Exo models.
 # Example:
@@ -350,10 +351,12 @@ _RAW_WEB_JSON_ALLOWED_KEYS = {"query", "queries", "time_filter", "freshness", "m
 # frontend event, while broad plain-text parsing of shell/doc/email tools would
 # be unsafe.
 _PLAIN_UI_OPEN_PANEL_RE = re.compile(
-    r"(?im)^\s*(?:`{1,3})?\s*ui_control\s+open_panel\s+"
+    # [ \t] rather than \s: adjacent \s* runs that can also cross newlines made
+    # this O(n^2) on whitespace-heavy model output.
+    r"(?im)^[ \t]*(?:`{1,3}[ \t]*)?ui_control[ \t]+open_panel[ \t]+"
     r"(documents?|library|gallery|images?|email|inbox|mail|sessions?|chats?|history|"
     r"notes?|brain|memor(?:y|ies)|skills?|settings|preferences|cookbook|models?)"
-    r"\s*(?:`{1,3})?\s*$"
+    r"[ \t]*(?:`{1,3}[ \t]*)?$"
 )
 
 
@@ -1437,9 +1440,10 @@ def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
 
     # Pattern 4b: Gemma-style <|tool_call|> blocks
     if not blocks:
-        for m in _GEMMA_TOOL_CALL_RE.finditer(text):
-            tool_name = m.group(1)
-            body = m.group(2)
+        for tool_name, inner in _iter_named_blocks(
+            text, _GEMMA_TOOL_CALL_OPEN_RE, _GEMMA_TOOL_CALL_CLOSE_RE
+        ):
+            body = "{" + inner + "}"
             block = _parse_gemma_tool_call(tool_name, body)
             if block:
                 blocks.append(block)
@@ -1505,7 +1509,7 @@ def strip_tool_blocks(text: str, skip_fenced: bool = False) -> str:
     cleaned = _strip_delimited(cleaned, _XML_TOOL_CALL_OPEN_RE, _XML_TOOL_CALL_CLOSE_RE)
     cleaned = _XML_OPEN_TOOL_CALL_RE.sub('', cleaned)
     cleaned = _strip_delimited(cleaned, _TOOL_CODE_OPEN_RE, _TOOL_CODE_CLOSE_RE)
-    cleaned = _GEMMA_TOOL_CALL_RE.sub('', cleaned)
+    cleaned = _strip_delimited(cleaned, _GEMMA_TOOL_CALL_OPEN_RE, _GEMMA_TOOL_CALL_CLOSE_RE)
     cleaned = _strip_delimited(cleaned, _FUNCTION_MODEL_OPEN_RE, _FUNCTION_MODEL_CLOSE_RE)
     cleaned = _strip_raw_openai_tool_call_json(cleaned)
     cleaned = _QWEN_ROLE_MARKER_RE.sub('', cleaned)

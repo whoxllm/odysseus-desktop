@@ -114,6 +114,61 @@ def _sub_delimited(text, open_re, close_re, repl):
     return "".join(out)
 
 
+_SIMPLE_THINK_OPEN_RE = re.compile(r"<think(?:ing)?>", re.IGNORECASE)
+_SIMPLE_THINK_CLOSE_RE = re.compile(r"</think(?:ing)?>", re.IGNORECASE)
+
+
+def strip_closed_think_blocks(text: str) -> str:
+    r"""Remove closed ``<think>...</think>`` / ``<thinking>...</thinking>`` blocks.
+
+    Same result as ``re.sub(r'<think(?:ing)?>[\s\S]*?</think(?:ing)?>', '', text,
+    flags=re.I)`` but forward-only (see _sub_delimited), so a flood of unclosed
+    ``<think>`` openers in model output can't make it O(n^2).
+    """
+    if not text:
+        return text or ""
+    return _sub_delimited(text, _SIMPLE_THINK_OPEN_RE, _SIMPLE_THINK_CLOSE_RE, lambda _inner: "")
+
+
+def iter_brace_spans(text: str):
+    r"""Yield each ``{...}`` span the way ``re.finditer(r'\{[\s\S]*?\}', text)`` would.
+
+    Each ``{`` pairs with the first ``}`` after it and scanning resumes past
+    that ``}``. Stops as soon as an opener has no closer, which keeps it O(n)
+    where the regex rescans to end-of-string from every unclosed ``{``.
+    """
+    pos = 0
+    while True:
+        start = text.find("{", pos)
+        if start < 0:
+            return
+        end = text.find("}", start + 1)
+        if end < 0:
+            return
+        yield text[start:end + 1]
+        pos = end + 1
+
+
+def first_code_fence_body(text: str):
+    r"""Body of the first ``` fenced block, like
+    ``re.search(r'```(?:json)?\s*\n?([\s\S]*?)```', text).group(1)``, or None.
+
+    Linear: finds the first fence and the next fence after it with str.find
+    instead of letting overlapping lazy/whitespace quantifiers backtrack.
+    """
+    start = (text or "").find("```")
+    if start < 0:
+        return None
+    body_start = start + 3
+    end = text.find("```", body_start)
+    if end < 0:
+        return None
+    body = text[body_start:end]
+    if body.startswith("json"):
+        body = body[4:]
+    return body.lstrip()
+
+
 def normalize_thinking_markup(text: str) -> str:
     """Canonicalize supported thinking wrappers to `<think>` markup.
 
