@@ -234,6 +234,39 @@ def normalize_base(url: str) -> str:
     return url
 
 
+def is_registered_endpoint_url(url: str, owner: Optional[str] = None) -> bool:
+    """True when ``url`` points at an enabled ModelEndpoint visible to ``owner``.
+
+    Scheduled tasks and the personal assistant store an ``endpoint_url`` that
+    the server later POSTs to, and any signed-in user can set it. Only admins
+    register ModelEndpoints, so accepting just their URLs (the same rule the
+    chat stream applies to ``selected_endpoint_url``) stops a user from aiming
+    server-side requests at arbitrary hosts such as cloud metadata services.
+    """
+    url = (url or "").strip().rstrip("/")
+    if not url:
+        return False
+    db = SessionLocal()
+    try:
+        q = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True)  # noqa: E712
+        if owner:
+            from src.auth_helpers import owner_filter
+            q = owner_filter(q, ModelEndpoint, owner)
+        for ep in q.all():
+            base = normalize_base(ep.base_url or "").rstrip("/")
+            if not base:
+                continue
+            try:
+                chat_url = build_chat_url(base).rstrip("/")
+            except Exception:
+                chat_url = ""
+            if url in (base, base + "/chat/completions", chat_url) or url.startswith(base + "/"):
+                return True
+        return False
+    finally:
+        db.close()
+
+
 def _validated_endpoint_base(url: str) -> str:
     """Return a base URL that is safe for endpoint path appends."""
     base = (url or "").strip().rstrip("/")

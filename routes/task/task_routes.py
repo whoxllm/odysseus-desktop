@@ -138,6 +138,19 @@ def _maybe_cascade_calendar_event(task) -> None:
         logger.warning(f"task delete: cascade fallback scan failed: {e}")
 
 
+def _require_registered_endpoint(endpoint_url: Optional[str], owner: Optional[str]) -> None:
+    """Reject a task endpoint_url that isn't one of the owner's registered endpoints.
+
+    The scheduler POSTs task prompts to this URL server-side, so an arbitrary
+    value would let any signed-in user make the server call internal hosts.
+    """
+    if not endpoint_url:
+        return
+    from src.endpoint_resolver import is_registered_endpoint_url
+    if not is_registered_endpoint_url(endpoint_url, owner):
+        raise HTTPException(400, "endpoint_url must be one of your configured model endpoints")
+
+
 class TaskCreate(BaseModel):
     name: Optional[str] = None
     prompt: Optional[str] = None
@@ -525,6 +538,7 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                     raise HTTPException(400, "Chained task not found")
                 if chain_target.owner != user:
                     raise HTTPException(403, "Cannot chain to another user's task")
+            _require_registered_endpoint(req.endpoint_url, user)
             task = ScheduledTask(
                 id=task_id,
                 owner=user,
@@ -691,6 +705,7 @@ def setup_task_routes(task_scheduler) -> APIRouter:
             if req.model is not None:
                 task.model = req.model or None
             if req.endpoint_url is not None:
+                _require_registered_endpoint(req.endpoint_url, task.owner)
                 task.endpoint_url = req.endpoint_url or None
             if req.trigger_type is not None:
                 # Generate webhook token when switching to webhook trigger

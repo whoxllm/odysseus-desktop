@@ -178,6 +178,14 @@ def setup_assistant_routes(task_scheduler) -> APIRouter:
             if payload.model is not None:
                 crew_db.model = payload.model or None
             if payload.endpoint_url is not None:
+                # The scheduler POSTs check-ins to this URL server-side; only
+                # accept an endpoint an admin registered (see
+                # is_registered_endpoint_url) so users can't aim it at
+                # internal hosts.
+                if payload.endpoint_url:
+                    from src.endpoint_resolver import is_registered_endpoint_url
+                    if not is_registered_endpoint_url(payload.endpoint_url, owner):
+                        raise HTTPException(status_code=400, detail="endpoint_url must be one of your configured model endpoints")
                 crew_db.endpoint_url = payload.endpoint_url or None
             if payload.timezone is not None:
                 crew_db.timezone = payload.timezone or None
