@@ -367,9 +367,19 @@ export function runHTML(code, panel) {
     return;
   }
   try { win.opener = null; } catch (_) {}
+  // The popup is about:blank, which shares this app's origin. Writing the
+  // code straight into it would let any <script src> the CSP allows (e.g.
+  // cdn.jsdelivr.net) run as the app with the user's session. Render it in a
+  // sandboxed iframe instead (no allow-same-origin => opaque origin), the
+  // same isolation runJavaScript uses.
   win.document.open();
-  win.document.write(code);
+  win.document.write('<!doctype html><meta charset="utf-8"><title>HTML preview</title><body style="margin:0"></body>');
   win.document.close();
+  const frame = win.document.createElement('iframe');
+  frame.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-popups');
+  frame.style.cssText = 'border:0;display:block;width:100vw;height:100vh';
+  frame.srcdoc = code;
+  win.document.body.appendChild(frame);
 
   showOutput(panel, 'Opened in new window', false);
   addCloseBtn(panel);

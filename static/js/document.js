@@ -2345,9 +2345,9 @@ import { bindMenuDismiss, dismissOrRemove } from './escMenuStack.js';
     }).join('');
 
     if (!changed && /<[^>]+>/.test(text) && typeof document !== 'undefined') {
-      const probe = document.createElement('div');
-      probe.innerHTML = text;
-      const plain = (probe.innerText || probe.textContent || '').trim();
+      // Parse in an inert document: assigning email HTML to a div created
+      // in the live page fires handlers like <img onerror> even detached.
+      const plain = _inertHtmlToText(text).trim();
       const plainClean = plain ? _sanitizeOutgoingEmailBody(plain) : plain;
       if (plainClean !== plain) return plainClean;
     }
@@ -2459,9 +2459,17 @@ import { bindMenuDismiss, dismissOrRemove } from './escMenuStack.js';
 
   function _emailHtmlToPlainText(html) {
     if (typeof document === 'undefined') return String(html || '');
-    const d = document.createElement('div');
-    d.innerHTML = String(html || '');
-    return d.innerText || d.textContent || '';
+    return _inertHtmlToText(html);
+  }
+
+  // Text of an HTML string, parsed with DOMParser so nothing in it loads or
+  // runs (no <img onerror>, no fetches). A div made with
+  // document.createElement belongs to the live page, so its innerHTML does.
+  // Same text as the old detached div: innerText on an element that isn't
+  // rendered falls back to textContent.
+  function _inertHtmlToText(html) {
+    const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+    return (doc.body && doc.body.textContent) || '';
   }
 
   function _emailQuoteMarkerMatch(text) {

@@ -20,7 +20,14 @@ def test_html_code_runner_detaches_opener_before_document_write():
     assert match
     body = match.group("body")
     assert "win.opener = null" in body
-    assert body.index("win.opener = null") < body.index("win.document.write(code)")
+    assert body.index("win.opener = null") < body.index("win.document.write(")
+    # The untrusted code goes into a sandboxed iframe (opaque origin), never
+    # straight into the same-origin about:blank popup.
+    assert "win.document.write(code)" not in body
+    sandbox = re.search(r"setAttribute\('sandbox', '([^']*)'\)", body)
+    assert sandbox and "allow-scripts" in sandbox.group(1)
+    assert "allow-same-origin" not in sandbox.group(1)
+    assert "frame.srcdoc = code" in body
 
 
 def test_compare_print_popup_detaches_opener_before_document_write():
